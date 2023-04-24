@@ -1,10 +1,13 @@
 box::use(
+  dplyr[mutate],
   shiny[
     shinyApp, tagList, tags, includeMarkdown, moduleServer, NS, bootstrapPage,
     textOutput, renderText, actionButton, observe, bindEvent,
   ],
   teal[ui_teal_with_splash, modules, module, srv_teal_with_splash],
   teal.data[cdisc_data, cdisc_dataset],
+  teal.transform[choices_selected, variable_choices, value_choices],
+  teal.modules.clinical[tm_g_km],
 )
 
 box::use(
@@ -19,8 +22,20 @@ box::use(
 
 adsl <- get_adsl()
 adas <- get_adas()
-adtte <- get_adtte()
+adtte <- get_adtte() |>
+  mutate(TTDE = AVAL / (365 / 12))
 adlb <- get_adlb()
+
+arm_ref_comp <- list(
+  ACTARMCD = list(
+    ref = "ARM B",
+    comp = c("ARM A", "ARM C")
+  ),
+  ARM = list(
+    ref = "B: Placebo",
+    comp = c("A: Drug X", "C: Combination")
+  )
+)
 
 teal_data <- cdisc_data(
   cdisc_dataset("ADSL", adsl),
@@ -77,6 +92,23 @@ teal_modules <- modules(
     ui = completion_table$ui,
     server = completion_table$server,
     filters = NULL
+  ),
+  tm_g_km(
+    label = "Kaplan-Meier plot",
+    dataname = "ADTTE",
+    arm_var = choices_selected(
+      variable_choices(adsl, c("ARM"))
+    ),
+    paramcd = choices_selected(
+      choices = value_choices(adtte, c("PARAMCD", "PARAM"))
+    ),
+    # arm_ref_comp = arm_ref_comp,
+    strata_var = choices_selected(
+      variable_choices(adsl, c("SEX"))
+    ),
+    facet_var = choices_selected(
+      variable_choices(adsl, c("SEX"))
+    )
   )
 )
 
