@@ -1,5 +1,5 @@
 box::use(
-  dplyr[mutate],
+  dplyr[mutate, filter, select, case_when],
   shiny[
     shinyApp, tagList, tags, includeMarkdown, moduleServer, NS, bootstrapPage,
     textOutput, renderText, actionButton, observe, bindEvent,
@@ -8,6 +8,9 @@ box::use(
   teal.data[cdisc_data, cdisc_dataset],
   teal.transform[choices_selected, variable_choices, value_choices],
   teal.modules.clinical[tm_g_km],
+  admiral[
+    derive_vars_merged, exprs, derive_vars_duration, derive_var_merged_cat,
+  ],
 )
 
 box::use(
@@ -20,11 +23,13 @@ box::use(
   app / view / completion_table,
 )
 
-adsl <- get_adsl()
-adas <- get_adas()
-adtte <- get_adtte() |>
-  mutate(TTDE = AVAL / (365 / 12))
-adlb <- get_adlb()
+arm_cat <- function(arm) {
+  case_when(
+    arm == "Xanomeline High Dose" ~ "ARM A",
+    arm == "Xanomeline Low Dose" ~ "ARM C",
+    TRUE ~ "ARM B"
+  )
+}
 
 arm_ref_comp <- list(
   ACTARMCD = list(
@@ -32,16 +37,41 @@ arm_ref_comp <- list(
     comp = c("ARM A", "ARM C")
   ),
   ARM = list(
-    ref = "B: Placebo",
-    comp = c("A: Drug X", "C: Combination")
+    ref = "Placebo",
+    comp = c("Xanomeline High Dose", "Xanomeline Low Dose")
   )
 )
 
+ADSL <- get_adsl() |>
+  mutate(
+    ARM = ARM |> factor(),
+    ARMCD = arm_cat(ARM) |> factor(),
+    ACTARMCD = ARMCD |> factor()
+  )
+
+ADTTE <- get_adtte() |>
+  derive_vars_merged(
+    dataset_add = ADSL,
+    filter_add = SAFFL == "Y" | STUDYID == "CDISCPILOT01",
+    by_vars = exprs(STUDYID, USUBJID),
+    new_vars = exprs(ARM, ARMCD)
+  ) |>
+  derive_vars_duration(
+    new_var = AVAL,
+    start_date = TRTSDT,
+    end_date = ADT,
+    out_unit = "months",
+    new_var_unit = AVALU
+  )
+
+ADAS <- get_adas()
+ADLB <- get_adlb()
+
 teal_data <- cdisc_data(
-  cdisc_dataset("ADSL", adsl),
-  cdisc_dataset("ADAS", adas, keys = c("STUDYID", "USUBJID", "PARAMCD", "AVISIT", "QSSEQ")),
-  cdisc_dataset("ADTTE", adtte),
-  cdisc_dataset("ADLB", adlb)
+  cdisc_dataset("ADSL", ADSL),
+  cdisc_dataset("ADAS", ADAS, keys = c("STUDYID", "USUBJID", "PARAMCD", "AVISIT", "QSSEQ")),
+  cdisc_dataset("ADTTE", ADTTE),
+  cdisc_dataset("ADLB", ADLB)
 )
 
 teal_modules <- modules(
@@ -97,17 +127,17 @@ teal_modules <- modules(
     label = "Kaplan-Meier plot",
     dataname = "ADTTE",
     arm_var = choices_selected(
-      variable_choices(adsl, c("ARM"))
+      variable_choices(ADSL, c("ARM", "ARMCD", "ACTARMCD")), "ARM"
     ),
     paramcd = choices_selected(
-      choices = value_choices(adtte, c("PARAMCD", "PARAM"))
+      choices = value_choices(ADTTE, "PARAMCD", "PARAM"), "TTDE"
     ),
-    # arm_ref_comp = arm_ref_comp,
+    arm_ref_comp = arm_ref_comp,
     strata_var = choices_selected(
-      variable_choices(adsl, c("SEX"))
+      variable_choices(ADSL, c("SEX")), "SEX"
     ),
     facet_var = choices_selected(
-      variable_choices(adsl, c("SEX"))
+      variable_choices(ADSL, c("SEX")), NULL
     )
   )
 )
