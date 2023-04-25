@@ -42,16 +42,16 @@ arm_ref_comp <- list(
   )
 )
 
-ADSL <- get_adsl() |>
+adsl <- get_adsl() |>
   mutate(
     ARM = ARM |> factor(),
     ARMCD = arm_cat(ARM) |> factor(),
     ACTARMCD = ARMCD |> factor()
   )
 
-ADTTE <- get_adtte() |>
+adtte <- get_adtte() |>
   derive_vars_merged(
-    dataset_add = ADSL,
+    dataset_add = adsl,
     filter_add = SAFFL == "Y" | STUDYID == "CDISCPILOT01",
     by_vars = exprs(STUDYID, USUBJID),
     new_vars = exprs(ARM, ARMCD)
@@ -64,14 +64,14 @@ ADTTE <- get_adtte() |>
     new_var_unit = AVALU
   )
 
-ADAS <- get_adas()
-ADLB <- get_adlb()
+adas <- get_adas()
+adlb <- get_adlb()
 
 teal_data <- cdisc_data(
-  cdisc_dataset("ADSL", ADSL),
-  cdisc_dataset("ADAS", ADAS, keys = c("STUDYID", "USUBJID", "PARAMCD", "AVISIT", "QSSEQ")),
-  cdisc_dataset("ADTTE", ADTTE),
-  cdisc_dataset("ADLB", ADLB)
+  cdisc_dataset("ADSL", adsl),
+  cdisc_dataset("ADAS", adas, keys = c("STUDYID", "USUBJID", "PARAMCD", "AVISIT", "QSSEQ")),
+  cdisc_dataset("ADTTE", adtte),
+  cdisc_dataset("ADLB", adlb)
 )
 
 teal_modules <- modules(
@@ -127,17 +127,17 @@ teal_modules <- modules(
     label = "Kaplan-Meier plot",
     dataname = "ADTTE",
     arm_var = choices_selected(
-      variable_choices(ADSL, c("ARM", "ARMCD", "ACTARMCD")), "ARM"
+      variable_choices(adsl, c("ARM", "ARMCD", "ACTARMCD")), "ARM"
     ),
     paramcd = choices_selected(
-      choices = value_choices(ADTTE, "PARAMCD", "PARAM"), "TTDE"
+      choices = value_choices(adtte, "PARAMCD", "PARAM"), "TTDE"
     ),
     arm_ref_comp = arm_ref_comp,
     strata_var = choices_selected(
-      variable_choices(ADSL, c("SEX")), "SEX"
+      variable_choices(adsl, c("SEX")), "SEX"
     ),
     facet_var = choices_selected(
-      variable_choices(ADSL, c("SEX")), NULL
+      variable_choices(adsl, c("SEX")), NULL
     )
   )
 )
