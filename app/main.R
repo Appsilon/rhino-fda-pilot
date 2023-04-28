@@ -4,6 +4,7 @@ box::use(
     shinyApp, tagList, tags, includeMarkdown, moduleServer, NS, bootstrapPage,
     textOutput, renderText, actionButton, observe, bindEvent,
   ],
+  shinyWidgets[alert],
   teal[ui_teal_with_splash, modules, module, srv_teal_with_splash],
   teal.data[cdisc_data, cdisc_dataset],
   teal.transform[choices_selected, variable_choices, value_choices],
@@ -22,6 +23,10 @@ box::use(
   app / view / efficacy_table,
   app / view / completion_table,
 )
+
+## Important for application to run
+# Possible Rhino bug!!
+library(teal.modules.clinical)
 
 arm_cat <- function(arm) {
   case_when(
@@ -138,6 +143,38 @@ teal_modules <- modules(
     ),
     facet_var = choices_selected(
       variable_choices(adsl, c("SEX")), NULL
+    ),
+    conf_level = choices_selected(c(0.95, 0.9, 0.8), 0.95, keep_order = TRUE),
+    pre_output = tags$div(
+      alert(
+        class = "top-margin",
+        tagList(
+          tags$b("Important Information:"),
+          tags$p(
+            "The analyses performed when utilizing subgroups or
+            other subsets of the source data sets are considered ",
+            tags$b("exploratory.")
+          ),
+          tags$ul(
+            tags$li(
+              "Treatment information variables from the",
+              tags$b("ADTTE"),
+              "data set are excluded from the variable list.
+              Use the treatment variables present in the",
+              tags$b("ADSL"),
+              "set to perform treatment-related filters."
+            ),
+            tags$li(
+              "In rare situations, applying filters with variables from both",
+              tags$b("ADSL"), "and", tags$b("ADTTE"),
+              "that overlap in content could result in an invalid data subset.
+              When possible, select variables with distinct content."
+            )
+          )
+        ),
+        status = "info",
+        dismissible = TRUE
+      )
     )
   )
 )
