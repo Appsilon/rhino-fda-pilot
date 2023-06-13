@@ -5,10 +5,10 @@ describe('app', () => {
 
   it('Starts', () => {});
 
-  it('Has 7 tabs', () => {
+  it('Has 9 tabs', () => {
     cy
       .get('.nav.nav-pills a[data-bs-toggle=tab]')
-      .should('have.length', 7);
+      .should('have.length', 9);
   });
 
   it('Navigates to all tabs', () => {

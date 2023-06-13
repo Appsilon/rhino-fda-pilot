@@ -1,10 +1,17 @@
 box::use(
+  dplyr[mutate, filter, select, case_when],
   shiny[
     shinyApp, tagList, tags, includeMarkdown, moduleServer, NS, bootstrapPage,
     textOutput, renderText, actionButton, observe, bindEvent, icon,
   ],
+  shinyWidgets[alert],
   teal[ui_teal_with_splash, modules, module, srv_teal_with_splash],
   teal.data[cdisc_data, cdisc_dataset],
+  teal.transform[choices_selected, variable_choices, value_choices],
+  teal.modules.clinical[tm_g_km],
+  admiral[
+    derive_vars_merged, exprs, derive_vars_duration, derive_var_merged_cat,
+  ],
 )
 
 box::use(
@@ -17,9 +24,52 @@ box::use(
   app / view / completion_table,
 )
 
-adsl <- get_adsl()
+## Important for application to run
+# Possible Rhino bug!!
+library(teal.modules.clinical)
+
+arm_cat <- function(arm) {
+  case_when(
+    arm == "Xanomeline High Dose" ~ "ARM A",
+    arm == "Xanomeline Low Dose" ~ "ARM C",
+    TRUE ~ "ARM B"
+  )
+}
+
+arm_ref_comp <- list(
+  ACTARMCD = list(
+    ref = "ARM B",
+    comp = c("ARM A", "ARM C")
+  ),
+  ARM = list(
+    ref = "Placebo",
+    comp = c("Xanomeline High Dose", "Xanomeline Low Dose")
+  )
+)
+
+adsl <- get_adsl() |>
+  mutate(
+    ARM = ARM |> factor(),
+    ARMCD = arm_cat(ARM) |> factor(),
+    ACTARMCD = ARMCD |> factor()
+  )
+
+adtte <- get_adtte() |>
+  derive_vars_merged(
+    dataset_add = adsl,
+    filter_add = SAFFL == "Y" | STUDYID == "CDISCPILOT01",
+    by_vars = exprs(STUDYID, USUBJID),
+    new_vars = exprs(ARM, ARMCD)
+  ) |>
+  derive_vars_duration(
+    new_var = AVAL,
+    start_date = TRTSDT,
+    end_date = ADT,
+    out_unit = "months",
+    new_var_unit = AVALU
+  )
+
 adas <- get_adas()
-adtte <- get_adtte()
 adlb <- get_adlb()
 
 teal_data <- cdisc_data(
@@ -77,6 +127,55 @@ teal_modules <- modules(
     ui = completion_table$ui,
     server = completion_table$server,
     filters = NULL
+  ),
+  tm_g_km(
+    label = "Kaplan-Meier plot",
+    dataname = "ADTTE",
+    arm_var = choices_selected(
+      variable_choices(adsl, c("ARM", "ARMCD", "ACTARMCD")), "ARM"
+    ),
+    paramcd = choices_selected(
+      choices = value_choices(adtte, "PARAMCD", "PARAM"), "TTDE"
+    ),
+    arm_ref_comp = arm_ref_comp,
+    strata_var = choices_selected(
+      variable_choices(adsl, c("SEX")), "SEX"
+    ),
+    facet_var = choices_selected(
+      variable_choices(adsl, c("SEX")), NULL
+    ),
+    conf_level = choices_selected(c(0.95, 0.9, 0.8), 0.95, keep_order = TRUE),
+    pre_output = tags$div(
+      alert(
+        class = "top-margin",
+        tagList(
+          tags$b("Important Information:"),
+          tags$p(
+            "The analyses performed when utilizing subgroups or
+            other subsets of the source data sets are considered ",
+            tags$b("exploratory.")
+          ),
+          tags$ul(
+            tags$li(
+              "Treatment information variables from the",
+              tags$b("ADTTE"),
+              "data set are excluded from the variable list.
+              Use the treatment variables present in the",
+              tags$b("ADSL"),
+              "set to perform treatment-related filters."
+            ),
+            tags$li(
+              "In rare situations, applying filters with variables from both",
+              tags$b("ADSL"), "and", tags$b("ADTTE"),
+              "that overlap in content could result in an invalid data subset.
+              When possible, select variables with distinct content."
+            )
+          )
+        ),
+        status = "info",
+        dismissible = TRUE
+      )
+    )
   )
 )
 
