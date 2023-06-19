@@ -1,0 +1,43 @@
+name: Prepare Connect Deployment
+on: push
+permissions:
+  contents: write
+jobs:
+  manifest-json:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # The workflow runs on push to any branch (to make sure it works),
+      # but the TARGET_BRANCH will only be updated when pushing to SOURCE_BRANCH.
+      SOURCE_BRANCH: main
+      TARGET_BRANCH: bot/deploy
+    steps:
+      - name: Setup system dependencies
+        run: >
+          sudo apt-get update && sudo apt-get install --yes
+          libcurl4-openssl-dev
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install R
+        uses: r-lib/actions/setup-r@v2
+
+      - uses: r-lib/actions/setup-renv@v2
+        env:
+          GITHUB_PAT: ${{ github.token }} # Needed, as the repo is private.
+
+      - name: Write manifest files
+        shell: Rscript {0}
+        run: |
+          install.packages("rsconnect")
+          rsconnect::writeManifest()
+
+      - name: Deploy to branch
+        # This action was designed for GitHub Pages deployments, but it works perfectly here.
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          dry-run: ${{ github.ref_name != env.SOURCE_BRANCH }}
+          branch: ${{ env.TARGET_BRANCH }}
+          folder: ./
+          clean: true
