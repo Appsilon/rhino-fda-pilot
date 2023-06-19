@@ -30,8 +30,8 @@ jobs:
       - name: Write manifest files
         shell: Rscript {0}
         run: |
-          renv::install("rsconnect")
-          rsconnect::writeManifest(example)
+          install.packages("rsconnect")
+          rsconnect::writeManifest()
 
       - name: Deploy to branch
         # This action was designed for GitHub Pages deployments, but it works perfectly here.
