@@ -3,7 +3,7 @@ on: push
 permissions:
   contents: write
 jobs:
-  main:
+  manifest-json:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
