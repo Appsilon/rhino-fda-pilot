@@ -12,6 +12,11 @@ jobs:
       SOURCE_BRANCH: prepare-connect-deployment
       TARGET_BRANCH: bot/deploy_test
     steps:
+      - name: Setup system dependencies
+        run: >
+          sudo apt-get update && sudo apt-get install --yes
+          libcurl4-openssl-dev
+
       - name: Checkout repository
         uses: actions/checkout@v3
 
