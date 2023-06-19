@@ -9,8 +9,8 @@ jobs:
     env:
       # The workflow runs on push to any branch (to make sure it works),
       # but the TARGET_BRANCH will only be updated when pushing to SOURCE_BRANCH.
-      SOURCE_BRANCH: prepare-connect-deployment
-      TARGET_BRANCH: bot/deploy_test
+      SOURCE_BRANCH: main
+      TARGET_BRANCH: bot/deploy
     steps:
       - name: Setup system dependencies
         run: >
@@ -39,5 +39,5 @@ jobs:
         with:
           dry-run: ${{ github.ref_name != env.SOURCE_BRANCH }}
           branch: ${{ env.TARGET_BRANCH }}
-          folder: build
+          folder: ./
           clean: true
